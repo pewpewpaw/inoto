@@ -2,7 +2,7 @@ import requests
 import os
 import pathlib
 import json
-import bs4
+from bs4 import BeautifulSoup
 import time
 from tqdm import *
 import json
@@ -10,6 +10,9 @@ import requests
 from rich.table import Table
 from rich.console import Console
 from datetime import *
+from colorama import *
+
+init(autoreset=True)
 
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"
@@ -47,12 +50,34 @@ def get_latest_cves():
         print("Erreur lors de la récupération des CVEs.")
 
 
-def adv_scrape():
-    print("adv scrape choose")
+def news_single():
+    print("system de scraping a faire")
 
-def scrape(url):
-    r = requests.get(url, headers=headers)
-    return r.text
+
+#### recupere les 10 derniere articles site hacker news
+
+def top_article():
+    liste = []
+    response = requests.get("https://hacker-news.firebaseio.com/v0/topstories.json")
+    top = response.json()
+    for tops in top[0:10]:
+        liste.append(tops)
+    print(liste)
+    for id in liste[0:10]:
+        article = requests.get(f"https://hacker-news.firebaseio.com/v0/item/{id}.json")
+        details = article.json()
+        details_type = json.dumps(details["type"], indent=6)
+        details_url = json.dumps(details["url"], indent=6)
+        details_title = json.dumps(details["title"], indent=6)
+        print("----------------")
+        print("type : ", details_type)
+        print("url : ", details_url)
+        print("title : ", details_title)
+        print("----------------")
+
+
+
+
 
 
 def cve_simple(name, version):
@@ -64,9 +89,9 @@ def cve_simple(name, version):
         vuln = response.json()
         
         if vuln.get("data", {}).get("search", []):
-            print(f"Vulnérabilités détectées pour {name} version {version} (pas encore disponible)")
+            print(Fore.RED +"Vulnérabilités détectées " f"pour \n service : {name} \n version : {version} (disponible plus tard)")
         else:
-            print(f"Aucune vulnérabilité trouvée pour {name} version {version}.")
+            print(Fore.GREEN + f"Aucune vulnérabilité trouvée pour {name} version {version}.")
     else:
         print(f"Erreur lors de la recherche. Code de statut: {response.status_code}. Assure-toi que les paramètres sont corrects.")
 
@@ -95,7 +120,9 @@ def refresh(iterations=100, delay=0.05, unit="unit"):
             pbar.update(1)  
     print("Task completed!")
 
+def scan_vuln():
+    print("scanner de vuln choisit")
 
         
 if __name__ == "__main__":
-    get_latest_cves()
+    print("mauvais fichier lancé")
