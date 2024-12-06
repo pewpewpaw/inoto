@@ -1,6 +1,6 @@
 # Newsletter
 
-Bienvenue sur le dépôt GitHub de **la Newsletter** ! Ce projet est [dédié à l'information].
+Bienvenue sur le dépôt GitHub de **la Newsletter** ! Ce projet est dédié à l'information.
 
 ## ⚠️ Avertissement sur les Bugs
 
