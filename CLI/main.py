@@ -1,5 +1,8 @@
 import requests
 from lib.lib import *
+from colorama import *
+
+init(autoreset=True)
 
 get_latest_cves()
 
@@ -10,8 +13,9 @@ print("""
       
       1. See the news about cyber (single url).
       2. Search for CVE.
-      3. Add new site.
+      3. 10 latest news.
       4. Enable the long time mode.
+      5. scan for vulnerabilities.
       
       """)
 
@@ -19,27 +23,31 @@ while True:
     choice = input("what's do you want to do ? : ")
 
     if choice == "1":
-        url = input("url : ")
-        print(scrape(url))
+        news_single()
         
             
     elif choice == "2":
         adv = input("Do you wan't to search about cve with her details ? (Y/N)")
         if adv.lower() == "y":
-            print("{ cve } with details ")
+            cve_id = input("aliases of the cve (format : CVE-XXXX-XXXX ): ")
+            cve_details(cve_id)
         
         elif adv.lower() == "n":
-            print(" { cve } without details ")
+            service = input("service : ")
+            version = input ("version : ")
+            cve_simple(service, version)
 
         else:
             print("please choose beetwen yes or no ")   
 
     elif choice == "3":
-        url = input("enter the site that you want to add (with http/https): ")
-        if requests.get(url).status_code == 200:
-            print('valid website')
-        else:
-            print("it's not a valid website")
+        top_article()
 
     elif choice == "4":
         long_time()
+        
+    elif choice == "5":
+        scan_vuln()
+    
+    else:
+        print("choisit entre 1 et 5")
