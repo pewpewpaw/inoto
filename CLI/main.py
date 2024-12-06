@@ -27,18 +27,18 @@ while True:
         
             
     elif choice == "2":
-        adv = input("Do you wan't to search about cve with her details ? (Y/N)")
-        if adv.lower() == "y":
+        adv = input("Do you wan't to search about cve with her details or scan about service version ? (CVE/SERV)")
+        if adv.lower() == "cve":
             cve_id = input("aliases of the cve (format : CVE-XXXX-XXXX ): ")
             cve_details(cve_id)
         
-        elif adv.lower() == "n":
+        elif adv.lower() == "serv":
             service = input("service : ")
             version = input ("version : ")
             cve_simple(service, version)
 
         else:
-            print("please choose beetwen yes or no ")   
+            print("please choose beetwen cve or serv ")   
 
     elif choice == "3":
         top_article()
