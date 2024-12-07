@@ -1,86 +1,100 @@
 import requests
-import os
 import pathlib
 import json
-from bs4 import BeautifulSoup
-import time
 from tqdm import *
 import json
 import requests
 from rich.table import Table
+from rich.table import Text
 from rich.console import Console
 from datetime import *
 from colorama import *
+from nmap import *
+
 
 init(autoreset=True)
 
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"
-    }
-
-def get_latest_cves():
-    response = requests.get("https://cve.circl.lu/api/last/10")
-    
-    if response.status_code == 200:
-        cves = response.json()
-        console = Console()
-        table = Table(show_lines=True)
-        
-        table.add_column("CVE ID", justify="left", width=20)
-        table.add_column("Description", justify="center", width=50)
-        table.add_column("Publié", justify="left", width=15)
-        
-        for cve in cves:
-            cve_id = cve.get("id", "Aucun ID trouvé")
-            aliases = cve.get("aliases", [])
-            cve_alias = aliases[0] if aliases else "Aucun alias trouvé"
-            description = cve.get("summary", "Aucune description disponible.")
-            published_date = cve.get("published", "N/A")
-
-            if published_date != "N/A":
-                try:
-                    published_date = datetime.strptime(published_date, "%Y-%m-%dT%H:%M:%SZ").strftime("%d-%m-%Y %H:%M:%S")
-                except ValueError:
-                    published_date = "Date invalide"
-            
-            table.add_row(cve_alias, description, published_date)
-        
-        console.print(table)
+  
+def json_to_plain_text(data, indent=1):
+    result = ""
+    indent_space = " " * indent
+    if isinstance(data, dict):
+            for key, value in data.items():
+                result += f"{indent_space}{key}:{json_to_plain_text(value, indent + 4)}\n"
+    elif isinstance(data, list):
+            for item in data:
+                result = f"{json_to_plain_text(item, indent + 2).strip()}\n"
     else:
-        print("Erreur lors de la récupération des CVEs.")
+        result += f"{indent_space}{data}"
+    return result
 
 
-def news_single():
-    print("system de scraping a faire")
+def display_menu():
+    console = Console()
 
+    title = Text("Hello to the Newsletter Automation", style="bold magenta")
+    subtitle = Text("(Check the README page to see how to use it)", style="dim cyan")
 
-#### recupere les 10 derniere articles site hacker news
+    menu = Text()
+    menu.append("1. ", style="bold yellow")
+    menu.append("Scan for vulnerabilities", style="cyan")
+    menu.append("\n2. ", style="bold yellow")
+    menu.append("Search for CVE", style="cyan")
+    menu.append("\n3. ", style="bold yellow")
+    menu.append("10 latest news", style="cyan")
+    menu.append("\n4. ", style="bold yellow")
+    menu.append("Enable the long time mode", style="cyan")
+    menu.append("\n5. ", style="bold yellow")
+    menu.append("Perform services scan", style="cyan")
+
+    console.rule()
+    console.print(title, justify="left")
+    console.print(subtitle, justify="left")
+    console.print("\n")
+    console.print(menu, justify="left")
+    console.rule()
+
+def scan(domain):
+    print("Scanning domain ....")
+    out = input("output file (y or n) :")
+    if out == "y":
+        pass
+    else:
+        pass
 
 def top_article():
+    console = Console()
     liste = []
+    
     response = requests.get("https://hacker-news.firebaseio.com/v0/topstories.json")
-    top = response.json()
-    for tops in top[0:10]:
+    if response.status_code == 200:
+        top = response.json()
+    else:
+        console.print("[bold red]Error retrieving Hacker News data[/bold red]")
+        return
+
+    for tops in top[:10]:
         liste.append(tops)
-    print(liste)
-    for id in liste[0:10]:
+    
+    table = Table(title="Top Articles from Hacker News", show_lines=True)
+    table.add_column("Type", style="cyan", justify="center")
+    table.add_column("Title", style="green", justify="left")
+    table.add_column("URL", style="magenta", justify="left")
+
+    for id in liste:
         article = requests.get(f"https://hacker-news.firebaseio.com/v0/item/{id}.json")
-        details = article.json()
-        details_type = json.dumps(details["type"], indent=6)
-        details_url = json.dumps(details["url"], indent=6)
-        details_title = json.dumps(details["title"], indent=6)
-        print("----------------")
-        print("type : ", details_type)
-        print("url : ", details_url)
-        print("title : ", details_title)
-        print("----------------")
+        if article.status_code == 200:
+            details = article.json()
+            details_type = details.get("type", "N/A")
+            details_title = details.get("title", "No Title")
+            details_url = details.get("url", "No URL")
+            table.add_row(details_type, details_title, details_url)
+        else:
+            console.print(f"[bold red]Error retrieving details for article ID {id}[/bold red]")
 
+    console.print(table)
 
-
-
-
-
-def cve_simple(name, version):
+def service_vuln(name, version):
     url = f"https://vulners.com/api/v3/search/lucene/?query={name}+{version}"
     
     response = requests.get(url)
@@ -89,40 +103,82 @@ def cve_simple(name, version):
         vuln = response.json()
         
         if vuln.get("data", {}).get("search", []):
-            print(Fore.RED +"Vulnérabilités détectées " f"pour \n service : {name} \n version : {version} (disponible plus tard)")
+            print(Fore.RED +"Vulnerabilities detected " f"for \n service : {name} \n version : {version} (available later)")
         else:
-            print(Fore.GREEN + f"Aucune vulnérabilité trouvée pour {name} version {version}.")
+            print(Fore.GREEN + f"No vulnerabilities found for {name} version {version}.")
     else:
-        print(f"Erreur lors de la recherche. Code de statut: {response.status_code}. Assure-toi que les paramètres sont corrects.")
+        print(f"Error during search. Status code: {response.status_code}. Make sure the parameters are correct.")
 
-    
 def cve_details(cve_id):
-    response = requests.get(f"https://cve.circl.lu/api/cve/{cve_id}")
-    if response.status_code == 200:
-        details = response.json() 
-        formatted_details = json.dumps(details, indent=6)
-        print("Détails trouvés : ", formatted_details)
-    else:
-        print("CVE inexistante, assure-toi d'avoir mis le bon ID.")
+    url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={cve_id}"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+
+        if "vulnerabilities" in data and data["vulnerabilities"]:
+            cve_name = data["vulnerabilities"][0]["cve"]["cisaVulnerabilityName"]
+            cve_score = data["vulnerabilities"][0]["cve"]["metrics"]["cvssMetricV31"][0]["cvssData"]["baseScore"]
+            published = data["vulnerabilities"][0]["cve"]["published"]
+            description = data["vulnerabilities"][0]["cve"]["descriptions"][0]["value"]
+            metrics_vector = data["vulnerabilities"][0]["cve"]["metrics"]["cvssMetricV31"][0]["cvssData"]["attackVector"]
+            metrics_complexity = data["vulnerabilities"][0]["cve"]["metrics"]["cvssMetricV31"][0]["cvssData"]["attackComplexity"]
+            metrics_userinteract = data["vulnerabilities"][0]["cve"]["metrics"]["cvssMetricV31"][0]["cvssData"]["userInteraction"]
+            metrics_exploitability = data["vulnerabilities"][0]["cve"]["metrics"]["cvssMetricV31"][0]["exploitabilityScore"]
+            
+            
+            console = Console()
+            table = Table(title=f"Détails de la CVE : {cve_id}")
+
+            table.add_column("Champ", style="cyan", no_wrap=True)
+            table.add_column("Valeur", style="magenta")
+            table.add_row("Nom de la vulnérabilité", cve_name)
+            table.add_row("Score CVSS", str(cve_score))
+            table.add_row("Date de publication", published)
+            table.add_row("Description", description)
+            table.add_row("Attack Vector", metrics_vector)
+            table.add_row("Attack Complexity", metrics_complexity)
+            table.add_row("User Interaction", metrics_userinteract)
+            table.add_row("Exploitabilité", str(metrics_exploitability))
+            console.print(table)
+
+    except requests.exceptions.RequestException as e:
+        print(f"Erreur lors de la requête: {e}")
+
+def cve_simple(cve_id):
+    url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={cve_id}"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+
+        if "vulnerabilities" in data and data["vulnerabilities"]:
+            cve_name = data["vulnerabilities"][0]["cve"].get("cisaVulnerabilityName", "N/A")
+            cve_score = data["vulnerabilities"][0]["cve"]["metrics"]["cvssMetricV31"][0]["cvssData"].get("baseScore", "N/A")
+            published = data["vulnerabilities"][0]["cve"].get("published", "N/A")
+            description = data["vulnerabilities"][0]["cve"]["descriptions"][0].get("value", "N/A")
+            metrics_vector = data["vulnerabilities"][0]["cve"]["metrics"]["cvssMetricV31"][0]["cvssData"].get("attackVector", "N/A")
+
+            console = Console()
+            table = Table(title=f"Détails de la CVE : {cve_id}")
+
+            table.add_column("Champ", style="cyan", no_wrap=True)
+            table.add_column("Valeur", style="magenta")
+
+            table.add_row("Nom de la vulnérabilité", cve_name)
+            table.add_row("Score CVSS", str(cve_score))
+            table.add_row("Date de publication", published)
+            table.add_row("Description", description)
+            table.add_row("Attack Vector", metrics_vector)
+
+            console.print(table)
+
+    except requests.exceptions.RequestException as e:
+        print(f"Erreur lors de la requête: {e}")
 
 
-def long_time(iterations=2000, delay=1):
-    for i in range(iterations):
-        print("Waiting" + "." * ((i % 10) + 1), end="\r") 
-        time.sleep(delay)
-    print("\nTask completed!")
-
-def refresh(iterations=100, delay=0.05, unit="unit"):
+def long_time():
     print("Long time mode activated")
-    with tqdm(total=iterations, desc="Processing", unit=unit) as pbar:
-        for _ in range(iterations): 
-            time.sleep(delay) 
-            pbar.update(1)  
-    print("Task completed!")
 
-def scan_vuln():
-    print("scanner de vuln choisit")
-
-        
 if __name__ == "__main__":
-    print("mauvais fichier lancé")
+    cve_details("CVE-2010-3333")
