@@ -1,6 +1,5 @@
 import requests
-import pathlib
-import json
+from pathlib import Path
 from tqdm import *
 import json
 import requests
@@ -44,8 +43,6 @@ def display_menu():
     menu.append("10 latest news", style="cyan")
     menu.append("\n4. ", style="bold yellow")
     menu.append("Enable the long time mode", style="cyan")
-    menu.append("\n5. ", style="bold yellow")
-    menu.append("Perform services scan", style="cyan")
 
     console.rule()
     console.print(title, justify="left")
@@ -57,10 +54,12 @@ def display_menu():
 def scan(domain):
     print("Scanning domain ....")
     out = input("output file (y or n) :")
-    if out == "y":
+    if out.lower() == "y":
+        pass
+    elif out.lower() == "n":
         pass
     else:
-        pass
+        print("choose beetwen y / n ")
 
 def top_article():
     console = Console()
@@ -94,21 +93,6 @@ def top_article():
 
     console.print(table)
 
-def service_vuln(name, version):
-    url = f"https://vulners.com/api/v3/search/lucene/?query={name}+{version}"
-    
-    response = requests.get(url)
-    
-    if response.status_code == 200:
-        vuln = response.json()
-        
-        if vuln.get("data", {}).get("search", []):
-            print(Fore.RED +"Vulnerabilities detected " f"for \n service : {name} \n version : {version} (available later)")
-        else:
-            print(Fore.GREEN + f"No vulnerabilities found for {name} version {version}.")
-    else:
-        print(f"Error during search. Status code: {response.status_code}. Make sure the parameters are correct.")
-
 def cve_details(cve_id):
     url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={cve_id}"
     try:
@@ -117,21 +101,48 @@ def cve_details(cve_id):
         data = response.json()
 
         if "vulnerabilities" in data and data["vulnerabilities"]:
-            cve_name = data["vulnerabilities"][0]["cve"]["cisaVulnerabilityName"]
-            cve_score = data["vulnerabilities"][0]["cve"]["metrics"]["cvssMetricV31"][0]["cvssData"]["baseScore"]
-            published = data["vulnerabilities"][0]["cve"]["published"]
-            description = data["vulnerabilities"][0]["cve"]["descriptions"][0]["value"]
-            metrics_vector = data["vulnerabilities"][0]["cve"]["metrics"]["cvssMetricV31"][0]["cvssData"]["attackVector"]
-            metrics_complexity = data["vulnerabilities"][0]["cve"]["metrics"]["cvssMetricV31"][0]["cvssData"]["attackComplexity"]
-            metrics_userinteract = data["vulnerabilities"][0]["cve"]["metrics"]["cvssMetricV31"][0]["cvssData"]["userInteraction"]
-            metrics_exploitability = data["vulnerabilities"][0]["cve"]["metrics"]["cvssMetricV31"][0]["exploitabilityScore"]
-            
+            vulnerability = data["vulnerabilities"][0]["cve"]
+
+            cve_name = vulnerability.get("cisaVulnerabilityName", "Indisponible")
+
+            try:
+                cve_score = vulnerability["metrics"]["cvssMetricV31"][0]["cvssData"]["baseScore"]
+            except (KeyError, IndexError):
+                cve_score = "Indisponible"
+
+            published = vulnerability.get("published", "Indisponible")
+
+            try:
+                description = vulnerability["descriptions"][0]["value"]
+            except (KeyError, IndexError):
+                description = "Indisponible"
+
+            try:
+                metrics_vector = vulnerability["metrics"]["cvssMetricV31"][0]["cvssData"]["attackVector"]
+            except (KeyError, IndexError):
+                metrics_vector = "Indisponible"
+
+            try:
+                metrics_complexity = vulnerability["metrics"]["cvssMetricV31"][0]["cvssData"]["attackComplexity"]
+            except (KeyError, IndexError):
+                metrics_complexity = "Indisponible"
+
+            try:
+                metrics_userinteract = vulnerability["metrics"]["cvssMetricV31"][0]["cvssData"]["userInteraction"]
+            except (KeyError, IndexError):
+                metrics_userinteract = "Indisponible"
+
+            try:
+                metrics_exploitability = vulnerability["metrics"]["cvssMetricV31"][0]["exploitabilityScore"]
+            except (KeyError, IndexError):
+                metrics_exploitability = "Indisponible"
+    
             
             console = Console()
             table = Table(title=f"Détails de la CVE : {cve_id}")
 
             table.add_column("Champ", style="cyan", no_wrap=True)
-            table.add_column("Valeur", style="magenta")
+            table.add_column("Valeur", style="red")
             table.add_row("Nom de la vulnérabilité", cve_name)
             table.add_row("Score CVSS", str(cve_score))
             table.add_row("Date de publication", published)
@@ -145,25 +156,47 @@ def cve_details(cve_id):
     except requests.exceptions.RequestException as e:
         print(f"Erreur lors de la requête: {e}")
 
+
 def cve_simple(cve_id):
     url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={cve_id}"
     try:
-        response = requests.get(url)
-        response.raise_for_status()
+        response = requests.get(url, timeout=10) 
+        response.raise_for_status() 
         data = response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Erreur lors de la requête: {e}")
+        return
+    except ValueError:
+        print("Erreur : Réponse JSON invalide.")
+        return
 
+    try:
         if "vulnerabilities" in data and data["vulnerabilities"]:
-            cve_name = data["vulnerabilities"][0]["cve"].get("cisaVulnerabilityName", "N/A")
-            cve_score = data["vulnerabilities"][0]["cve"]["metrics"]["cvssMetricV31"][0]["cvssData"].get("baseScore", "N/A")
-            published = data["vulnerabilities"][0]["cve"].get("published", "N/A")
-            description = data["vulnerabilities"][0]["cve"]["descriptions"][0].get("value", "N/A")
-            metrics_vector = data["vulnerabilities"][0]["cve"]["metrics"]["cvssMetricV31"][0]["cvssData"].get("attackVector", "N/A")
+            cve = data["vulnerabilities"][0]["cve"]
+
+            cve_name = cve.get("cisaVulnerabilityName", "Indisponible")
+            cve_score = (
+                cve.get("metrics", {})
+                .get("cvssMetricV31", [{}])[0]
+                .get("cvssData", {})
+                .get("baseScore", "Indisponible")
+            )
+            published = cve.get("published", "Indisponible")
+            description = (
+                cve.get("descriptions", [{}])[0].get("value", "Indisponible")
+            )
+            metrics_vector = (
+                cve.get("metrics", {})
+                .get("cvssMetricV31", [{}])[0]
+                .get("cvssData", {})
+                .get("attackVector", "Indisponible")
+            )
 
             console = Console()
             table = Table(title=f"Détails de la CVE : {cve_id}")
 
             table.add_column("Champ", style="cyan", no_wrap=True)
-            table.add_column("Valeur", style="magenta")
+            table.add_column("Valeur", style="red")
 
             table.add_row("Nom de la vulnérabilité", cve_name)
             table.add_row("Score CVSS", str(cve_score))
@@ -172,13 +205,16 @@ def cve_simple(cve_id):
             table.add_row("Attack Vector", metrics_vector)
 
             console.print(table)
+        else:
+            print("Erreur : Aucune vulnérabilité trouvée pour cet ID CVE.")
 
-    except requests.exceptions.RequestException as e:
-        print(f"Erreur lors de la requête: {e}")
+    except (KeyError, IndexError, TypeError) as e:
+        print(f"Erreur lors de l'extraction des données : {e}")
 
+def scan_serv(services, version):
+    pass
+    
 
-def long_time():
-    print("Long time mode activated")
 
 if __name__ == "__main__":
-    cve_details("CVE-2010-3333")
+    pass
